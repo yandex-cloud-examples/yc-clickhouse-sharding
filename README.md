@@ -1,6 +1,6 @@
 # Шардирование таблиц Yandex Managed Service for ClickHouse®
 
-Вы можете шардировать таблицы [Managed Service for ClickHouse®](https://yandex.cloud/ru/docs/managed-clickhouse)с помощью одного из следующих подходов:
+Вы можете шардировать таблицы [Managed Service for ClickHouse®](https://yandex.cloud/ru/docs/managed-clickhouse) с помощью одного из следующих подходов:
 
 * Классический, когда распределенная таблица использует все шарды кластера.
 * С группами шардов, когда часть шардов объединена в группу.
