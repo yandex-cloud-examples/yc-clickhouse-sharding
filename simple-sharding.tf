@@ -11,15 +11,15 @@ locals {
   db_name                  = "tutorial"    # Set database name.
   zone_a_v4_cidr_blocks    = "10.1.0.0/24" # Set the CIDR block for subnet in the ru-central1-a availability zone.
   zone_b_v4_cidr_blocks    = "10.2.0.0/24" # Set the CIDR block for subnet in the ru-central1-b availability zone.
-  zone_c_v4_cidr_blocks    = "10.3.0.0/24" # Set the CIDR block for subnet in the ru-central1-c availability zone.
+  zone_d_v4_cidr_blocks    = "10.3.0.0/24" # Set the CIDR block for subnet in the ru-central1-d availability zone.
   cluster_name             = "chcluster"   # Set the Managed Service for ClickHouse cluster name
   mch_master_host_class    = "s2.micro"    # Set the host class for the Managed Service for ClickHouse cluster master host.
   mch_zk_host_class        = "s2.micro"    # Set the host class for the Managed Service for ClickHouse cluster Zookeeper host.
   shard_group_2shards_name = "sgroup"      # Set the shard group with two shards name
   shard_group_data_name    = "sgroup_data" # Set the shard group with one shard name
   shard_name1              = "shard1"      # Set the name for the first shard.
-  shard_name2              = "shard2"      # Set the name for the first shard.
-  shard_name3              = "shard3"      # Set the name for the first shard.
+  shard_name2              = "shard2"      # Set the name for the second shard.
+  shard_name3              = "shard3"      # Set the name for the third shard.
 }
 
 resource "yandex_vpc_network" "clickhouse_sharding_network" {
@@ -43,12 +43,12 @@ resource "yandex_vpc_subnet" "subnet-b" {
   v4_cidr_blocks = [local.zone_b_v4_cidr_blocks]
 }
 
-resource "yandex_vpc_subnet" "subnet-c" {
-  description    = "Subnet in the ru-central1-c availability zone"
-  name           = "clickhouse-subnet-c"
-  zone           = "ru-central1-c"
+resource "yandex_vpc_subnet" "subnet-d" {
+  description    = "Subnet in the ru-central1-d availability zone"
+  name           = "clickhouse-subnet-d"
+  zone           = "ru-central1-d"
   network_id     = yandex_vpc_network.clickhouse_sharding_network.id
-  v4_cidr_blocks = [local.zone_c_v4_cidr_blocks]
+  v4_cidr_blocks = [local.zone_d_v4_cidr_blocks]
 }
 
 resource "yandex_vpc_default_security_group" "clickhouse-security-group" {
@@ -112,8 +112,8 @@ resource "yandex_mdb_clickhouse_cluster" "clickhouse-cluster-sharded" {
 
   host {
     type             = "CLICKHOUSE"
-    zone             = "ru-central1-c"
-    subnet_id        = yandex_vpc_subnet.subnet-c.id
+    zone             = "ru-central1-d"
+    subnet_id        = yandex_vpc_subnet.subnet-d.id
     assign_public_ip = true # Required for connection from the Internet
     shard_name       = local.shard_name3
   }
@@ -132,19 +132,22 @@ resource "yandex_mdb_clickhouse_cluster" "clickhouse-cluster-sharded" {
 
   host {
     type      = "ZOOKEEPER"
-    zone      = "ru-central1-c"
-    subnet_id = yandex_vpc_subnet.subnet-c.id
+    zone      = "ru-central1-d"
+    subnet_id = yandex_vpc_subnet.subnet-d.id
   }
+}
 
-  database {
-    name = local.db_name
-  }
+resource "yandex_mdb_clickhouse_database" "clickhouse-database" {
+  cluster_id = yandex_mdb_clickhouse_cluster.clickhouse-cluster-sharded.id
+  name       = local.db_name
+}
 
-  user {
-    name     = local.db_username
-    password = local.db_password
-    permission {
-      database_name = local.db_name
-    }
+resource "yandex_mdb_clickhouse_user" "database-user" {
+  cluster_id = yandex_mdb_clickhouse_cluster.clickhouse-cluster-sharded.id
+  name       = local.db_username
+  password   = local.db_password
+
+  permission {
+    database_name = local.db_name
   }
 }
