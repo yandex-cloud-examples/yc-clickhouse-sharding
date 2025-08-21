@@ -18,8 +18,8 @@ locals {
   shard_group_2shards_name = "sgroup"      # Set the shard group with two shards name
   shard_group_data_name    = "sgroup_data" # Set the shard group with one shard name
   shard_name1              = "shard1"      # Set the name for the first shard.
-  shard_name2              = "shard2"      # Set the name for the first shard.
-  shard_name3              = "shard3"      # Set the name for the first shard.
+  shard_name2              = "shard2"      # Set the name for the second shard.
+  shard_name3              = "shard3"      # Set the name for the third shard.
 }
 
 resource "yandex_vpc_network" "clickhouse_sharding_network" {
@@ -135,16 +135,19 @@ resource "yandex_mdb_clickhouse_cluster" "clickhouse-cluster-sharded" {
     zone      = "ru-central1-d"
     subnet_id = yandex_vpc_subnet.subnet-d.id
   }
+}
 
-  database {
-    name = local.db_name
-  }
+resource "yandex_mdb_clickhouse_database" "clickhouse-database" {
+  cluster_id = yandex_mdb_clickhouse_cluster.clickhouse-cluster-sharded.id
+  name       = local.db_name
+}
 
-  user {
-    name     = local.db_username
-    password = local.db_password
-    permission {
-      database_name = local.db_name
-    }
+resource "yandex_mdb_clickhouse_user" "database-user" {
+  cluster_id = yandex_mdb_clickhouse_cluster.clickhouse-cluster-sharded.id
+  name       = local.db_username
+  password   = local.db_password
+
+  permission {
+    database_name = local.db_name
   }
 }
