@@ -71,69 +71,77 @@ resource "yandex_vpc_default_security_group" "clickhouse-security-group" {
   }
 }
 
-resource "yandex_mdb_clickhouse_cluster" "clickhouse-cluster-sharded" {
+resource "yandex_mdb_clickhouse_cluster_v2" "clickhouse-cluster-sharded" {
   description        = "Managed Service for ClickHouse cluster with advanced sharding"
   name               = local.cluster_name
   environment        = "PRODUCTION"
   network_id         = yandex_vpc_network.clickhouse_sharding_network.id
   security_group_ids = [yandex_vpc_default_security_group.clickhouse-security-group.id]
 
-  clickhouse {
-    resources {
+  clickhouse = {
+    resources = {
       resource_preset_id = local.mch_master_host_class
       disk_type_id       = "network-ssd"
       disk_size          = 16 # GB
     }
   }
 
-  zookeeper {
-    resources {
+  zookeeper = {
+    resources = {
       resource_preset_id = local.mch_zk_host_class
       disk_type_id       = "network-ssd"
       disk_size          = 10 # GB
     }
   }
 
-  host {
-    type             = "CLICKHOUSE"
-    zone             = "ru-central1-a"
-    subnet_id        = yandex_vpc_subnet.subnet-a.id
-    assign_public_ip = true # Required for connection from the Internet.
-    shard_name       = local.shard_name1
+  hosts = {
+    "ch-host1" = {
+      type             = "CLICKHOUSE"
+      zone             = "ru-central1-a"
+      subnet_id        = yandex_vpc_subnet.subnet-a.id
+      assign_public_ip = true # Required for connection from the Internet.
+      shard_name       = local.shard_name1
+    }
+
+    "ch-host2" = {
+      type             = "CLICKHOUSE"
+      zone             = "ru-central1-b"
+      subnet_id        = yandex_vpc_subnet.subnet-b.id
+      assign_public_ip = true # Required for connection from the Internet.
+      shard_name       = local.shard_name2
+    }
+
+    "ch-host3" = {
+      type             = "CLICKHOUSE"
+      zone             = "ru-central1-d"
+      subnet_id        = yandex_vpc_subnet.subnet-d.id
+      assign_public_ip = true # Required for connection from the Internet.
+      shard_name       = local.shard_name3
+    }
+
+    "zk-host1" = {
+      type      = "ZOOKEEPER"
+      zone      = "ru-central1-a"
+      subnet_id = yandex_vpc_subnet.subnet-a.id
+    }
+
+    "zk-host2" = {
+      type      = "ZOOKEEPER"
+      zone      = "ru-central1-b"
+      subnet_id = yandex_vpc_subnet.subnet-b.id
+    }
+
+    "zk-host3" = {
+      type      = "ZOOKEEPER"
+      zone      = "ru-central1-d"
+      subnet_id = yandex_vpc_subnet.subnet-d.id
+    }
   }
 
-  host {
-    type             = "CLICKHOUSE"
-    zone             = "ru-central1-b"
-    subnet_id        = yandex_vpc_subnet.subnet-b.id
-    assign_public_ip = true # Required for connection from the Internet.
-    shard_name       = local.shard_name2
-  }
-
-  host {
-    type             = "CLICKHOUSE"
-    zone             = "ru-central1-d"
-    subnet_id        = yandex_vpc_subnet.subnet-d.id
-    assign_public_ip = true # Required for connection from the Internet.
-    shard_name       = local.shard_name3
-  }
-
-  host {
-    type      = "ZOOKEEPER"
-    zone      = "ru-central1-a"
-    subnet_id = yandex_vpc_subnet.subnet-a.id
-  }
-
-  host {
-    type      = "ZOOKEEPER"
-    zone      = "ru-central1-b"
-    subnet_id = yandex_vpc_subnet.subnet-b.id
-  }
-
-  host {
-    type      = "ZOOKEEPER"
-    zone      = "ru-central1-d"
-    subnet_id = yandex_vpc_subnet.subnet-d.id
+  shards = {
+    (local.shard_name1) = {}
+    (local.shard_name2) = {}
+    (local.shard_name3) = {}
   }
 
   shard_group {
@@ -152,15 +160,19 @@ resource "yandex_mdb_clickhouse_cluster" "clickhouse-cluster-sharded" {
       local.shard_name3
     ]
   }
+
+  maintenance_window {
+    type = "ANYTIME"
+  }
 }
 
 resource "yandex_mdb_clickhouse_database" "clickhouse-database" {
-  cluster_id = yandex_mdb_clickhouse_cluster.clickhouse-cluster-sharded.id
+  cluster_id = yandex_mdb_clickhouse_cluster_v2.clickhouse-cluster-sharded.id
   name       = local.db_name
 }
 
 resource "yandex_mdb_clickhouse_user" "database-user" {
-  cluster_id = yandex_mdb_clickhouse_cluster.clickhouse-cluster-sharded.id
+  cluster_id = yandex_mdb_clickhouse_cluster_v2.clickhouse-cluster-sharded.id
   name       = local.db_username
   password   = local.db_password
 
